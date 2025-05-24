@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Private AI Chatbot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'hf-blue': '#FFD21E',
+                        'hf-dark': '#000000',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .chat-container {
+            height: calc(100vh - 180px);
+        }
+        @media (max-width: 640px) {
+            .chat-container {
+                height: calc(100vh - 140px);
+            }
+        }
+        .typing-indicator::after {
+            content: '...';
+            animation: typing 1.5s infinite;
+        }
+        @keyframes typing {
+            0% { content: '.'; }
+            33% { content: '..'; }
+            66% { content: '...'; }
+        }
+        .message-enter {
+            animation: messageEnter 0.3s ease-out;
+        }
+        @keyframes messageEnter {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .markdown p {
+            margin-bottom: 1em;
+        }
+        .markdown a {
+            color: #6366f1;
+            text-decoration: underline;
+        }
+        .markdown code {
+            background-color: #f3f4f6;
+            padding: 0.2em 0.4em;
+            border-radius: 0.25rem;
+            font-family: monospace;
+        }
+        .dark .markdown code {
+            background-color: #374151;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .dark ::-webkit-scrollbar-track {
+            background: #374151;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #6b7280;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 font-sans transition-colors duration-200">
+    <div class="container mx-auto max-w-4xl px-4 py-4 md:py-6">
+        <!-- Header -->
+        <header class="bg-indigo-600 dark:bg-gray-800 text-white rounded-xl shadow-lg p-4 md:p-6 mb-4 md:mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="flex items-center space-x-3">
+                        <h1 class="text-xl md:text-3xl font-bold">Private AI Chatbot</h1>
+                        <button id="theme-toggle" class="p-1 rounded-full focus:outline-none">
+                            <i class="fas fa-moon text-white" id="theme-icon"></i>
+                        </button>
+                    </div>
+                    <p class="text-indigo-100 dark:text-gray-300 mt-1 text-sm md:text-base">Powered by Hugging Face models</p>
+                </div>
+                <div class="flex items-center space-x-2 md:space-x-4">
+                    <div class="relative">
+                        <select id="model-select" class="bg-indigo-700 dark:bg-gray-700 text-white rounded-lg px-2 md:px-4 py-1 md:py-2 appearance-none pr-6 md:pr-8 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm md:text-base">
+                            <option value="gpt2">GPT-2</option>
+                            <option value="facebook/blenderbot-400M-distill">BlenderBot</option>
+                            <option value="microsoft/DialoGPT-medium">DialoGPT</option>
+                            <option value="google/flan-t5-base">FLAN-T5</option>
+                            <option value="mistralai/Mistral-7B-Instruct-v0.1">Mistral 7B</option>
+                            <option value="custom">Custom Model</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 md:px-2 text-white">
+                            <i class="fas fa-chevron-down text-xs md:text-sm"></i>
+                        </div>
+                    </div>
+                    <button id="settings-btn" class="bg-indigo-700 dark:bg-gray-700 hover:bg-indigo-800 dark:hover:bg-gray-600 text-white p-1 md:p-2 rounded-lg transition-colors">
+                        <i class="fas fa-cog text-sm md:text-base"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Chat Container -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+            <!-- Chat Header -->
+            <div class="bg-gray-50 dark:bg-gray-700 px-4 md:px-6 py-3 border-b dark:border-gray-600 flex items-center justify-between">
+                <div class="flex items-center space-x-2 md:space-x-3">
+                    <div class="bg-indigo-500 dark:bg-hf-blue text-white dark:text-black rounded-full w-8 h-8 md:w-10 md:h-10 flex items-center justify-center">
+                        <i class="fas fa-robot text-sm md:text-base"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-800 dark:text-gray-100 text-sm md:text-base" id="current-model-name">GPT-2</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-300" id="model-status">Model is ready</p>
+                    </div>
+                </div>
+                <button id="clear-chat" class="text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-100 transition-colors text-xs md:text-sm">
+                    <i class="fas fa-trash-alt mr-1"></i> Clear
+                </button>
+            </div>
+
+            <!-- Messages -->
+            <div id="chat-messages" class="chat-container overflow-y-auto p-4 md:p-6 space-y-3 md:space-y-4">
+                <div class="flex justify-start">
+                    <div class="bg-gray-100 dark:bg-gray-600 rounded-xl rounded-tl-none px-3 py-2 md:px-4 md:py-3 max-w-xs md:max-w-md lg:max-w-lg">
+                        <p class="text-gray-800 dark:text-gray-100">Hello! I'm your private AI assistant. Ask me anything, and I'll do my best to help.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="border-t dark:border-gray-600 p-3 md:p-4 bg-gray-50 dark:bg-gray-700">
+                <form id="chat-form" class="flex space-x-2 md:space-x-3">
+                    <div class="flex-grow relative">
+                        <input 
+                            id="message-input" 
+                            type="text" 
+                            placeholder="Type your message..." 
+                            class="w-full border dark:border-gray-600 rounded-xl py-2 md:py-3 px-3 md:px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 text-sm md:text-base"
+                            autocomplete="off"
+                            autofocus
+                        >
+                        <button type="button" id="mic-btn" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-indigo-600 dark:hover:text-hf-blue">
+                            <i class="fas fa-microphone text-sm md:text-base"></i>
+                        </button>
+                    </div>
+                    <button 
+                        type="submit" 
+                        id="send-btn"
+                        class="bg-indigo-600 dark:bg-hf-blue hover:bg-indigo-700 dark:hover:bg-yellow-500 text-white dark:text-black rounded-xl px-3 md:px-5 py-2 md:py-3 transition-colors flex items-center justify-center disabled:opacity-50 text-sm md:text-base"
+                    >
+                        <i class="fas fa-paper-plane mr-1 md:mr-2 text-sm md:text-base"></i> Send
+                    </button>
+                </form>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+                    This chatbot uses Hugging Face Inference API. Your conversations stay private.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div class="border-b dark:border-gray-600 px-6 py-4 flex justify-between items-center">
+                <h3 class="text-lg font-semibold dark:text-white">Chatbot Settings</h3>
+                <button id="close-settings" class="text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Temperature</label>
+                    <input type="range" id="temperature" min="0.1" max="1.0" step="0.1" value="0.7" class="w-full">
+                    <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <span>Precise</span>
+                        <span id="temp-value">0.7</span>
+                        <span>Creative</span>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Response Length</label>
+                    <input type="range" id="max-length" min="20" max="200" step="10" value="100" class="w-full">
+                    <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <span>Short</span>
+                        <span id="length-value">100 tokens</span>
+                        <span>Long</span>
+                    </div>
+                </div>
+                <div id="custom-model-container" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Custom Model ID</label>
+                    <input type="text" id="custom-model" placeholder="username/model-name" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white">
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Enter your custom Hugging Face model ID</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Hugging Face API Key</label>
+                    <input type="password" id="api-key" placeholder="Your Hugging Face API key" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white">
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Required for private models. Get one at <a href="https://huggingface.co/settings/tokens" target="_blank" class="text-indigo-500 dark:text-hf-blue">huggingface.co/settings/tokens</a></p>
+                </div>
+            </div>
+            <div class="border-t dark:border-gray-600 px-6 py-4 flex justify-end space-x-3">
+                <button id="cancel-settings" class="px-4 py-2 border rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
+                <button id="save-settings" class="px-4 py-2 bg-indigo-600 dark:bg-hf-blue text-white dark:text-black rounded-lg hover:bg-indigo-700 dark:hover:bg-yellow-500">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const chatForm = document.getElementById('chat-form');
+            const messageInput = document.getElementById('message-input');
+            const chatMessages = document.getElementById('chat-messages');
+            const clearChatBtn = document.getElementById('clear-chat');
+            const modelSelect = document.getElementById('model-select');
+            const currentModelName = document.getElementById('current-model-name');
+            const modelStatus = document.getElementById('model-status');
+            const settingsBtn = document.getElementById('settings-btn');
+            const settingsModal = document.getElementById('settings-modal');
+            const closeSettings = document.getElementById('close-settings');
+            const cancelSettings = document.getElementById('cancel-settings');
+            const saveSettings = document.getElementById('save-settings');
+            const temperatureSlider = document.getElementById('temperature');
+            const maxLengthSlider = document.getElementById('max-length');
+            const tempValue = document.getElementById('temp-value');
+            const lengthValue = document.getElementById('length-value');
+            const micBtn = document.getElementById('mic-btn');
+            const sendBtn = document.getElementById('send-btn');
+            const themeToggle = document.getElementById('theme-toggle');
+            const themeIcon = document.getElementById('theme-icon');
+            const customModelContainer = document.getElementById('custom-model-container');
+            const customModelInput = document.getElementById('custom-model');
+            
+            // Chat state
+            let isBotTyping = false;
+            let chatHistory = [];
+            
+            // Model configuration
+            let currentModel = 'gpt2';
+            let temperature = 0.7;
+            let maxLength = 100;
+            let apiKey = '';
+            let customModel = '';
+            
+            // Check for saved theme preference
+            if (localStorage.getItem('color-theme') === 'dark' || (!localStorage.getItem('color-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                themeIcon.classList.replace('fa-moon', 'fa-sun');
+            } else {
+                document.documentElement.classList.remove('dark');
+                themeIcon.classList.replace('fa-sun', 'fa-moon');
+            }
+            
+            // Initialize from localStorage
+            function initializeFromStorage() {
+                const savedSettings = localStorage.getItem('chatbotSettings');
+                if (savedSettings) {
+                    const settings = JSON.parse(savedSettings);
+                    currentModel = settings.currentModel || 'gpt2';
+                    temperature = settings.temperature || 0.7;
+                    maxLength = settings.maxLength || 100;
+                    apiKey = settings.apiKey || '';
+                    customModel = settings.customModel || '';
+                    
+                    // Update UI
+                    modelSelect.value = currentModel;
+                    temperatureSlider.value = temperature;
+                    maxLengthSlider.value = maxLength;
+                    document.getElementById('api-key').value = apiKey;
+                    customModelInput.value = customModel;
+                    tempValue.textContent = temperature;
+                    lengthValue.textContent = `${maxLength} tokens`;
+                    
+                    const modelName = modelSelect.options[modelSelect.selectedIndex].text;
+                    currentModelName.textContent = modelName;
+                    
+                    if (currentModel === 'custom') {
+                        customModelContainer.classList.remove('hidden');
+                        currentModelName.textContent = customModel || 'Custom Model';
+                    }
+                }
+                
+                const savedHistory = localStorage.getItem('chatHistory');
+                if (savedHistory) {
+                    chatHistory = JSON.parse(savedHistory);
+                    renderChatHistory();
+                }
+            }
+            
+            // Save settings to localStorage
+            function saveSettingsToStorage() {
+                const settings = {
+                    currentModel,
+                    temperature,
+                    maxLength,
+                    apiKey,
+                    customModel
+                };
+                localStorage.setItem('chatbotSettings', JSON.stringify(settings));
+            }
+            
+            // Save chat history to localStorage
+            function saveChatHistory() {
+                localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+            }
+            
+            // Render chat history
+            function renderChatHistory() {
+                chatMessages.innerHTML = '';
+                
+                if (chatHistory.length === 0) {
+                    // Add welcome message if chat is empty
+                    addSystemMessage('Hello! I\'m your private AI assistant. Ask me anything, and I\'ll do my best to help.');
+                    return;
+                }
+                
+                chatHistory.forEach(item => {
+                    if (item.role === 'user') {
+                        addUserMessage(item.content, false);
+                    } else if (item.role === 'assistant') {
+                        addBotMessage(item.content, false);
+                    } else if (item.role === 'system') {
+                        addSystemMessage(item.content);
+                    }
+                });
+                
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            // Theme toggle
+            themeToggle.addEventListener('click', function() {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('color-theme', 'light');
+                    themeIcon.classList.replace('fa-sun', 'fa-moon');
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('color-theme', 'dark');
+                    themeIcon.classList.replace('fa-moon', 'fa-sun');
+                }
+            });
+            
+            // Model select change
+            modelSelect.addEventListener('change', function() {
+                currentModel = this.value;
+                const modelName = this.options[this.selectedIndex].text;
+                
+                if (currentModel === 'custom') {
+                    customModelContainer.classList.remove('hidden');
+                    currentModelName.textContent = customModel || 'Custom Model';
+                } else {
+                    customModelContainer.classList.add('hidden');
+                    currentModelName.textContent = modelName;
+                }
+                
+                addSystemMessage(`Switched to ${modelName} model`);
+                saveSettingsToStorage();
+            });
+            
+            // Temperature slider
+            temperatureSlider.addEventListener('input', function() {
+                tempValue.textContent = this.value;
+            });
+            
+            // Max length slider
+            maxLengthSlider.addEventListener('input', function() {
+                lengthValue.textContent = `${this.value} tokens`;
+            });
+            
+            // Custom model input
+            customModelInput.addEventListener('input', function() {
+                customModel = this.value.trim();
+                if (currentModel === 'custom') {
+                    currentModelName.textContent = customModel || 'Custom Model';
+                }
+            });
+            
+            // Settings modal
+            settingsBtn.addEventListener('click', function() {
+                settingsModal.classList.remove('hidden');
+            });
+            
+            closeSettings.addEventListener('click', function() {
+                settingsModal.classList.add('hidden');
+            });
+            
+            cancelSettings.addEventListener('click', function() {
+                settingsModal.classList.add('hidden');
+            });
+            
+            saveSettings.addEventListener('click', function() {
+                temperature = parseFloat(temperatureSlider.value);
+                maxLength = parseInt(maxLengthSlider.value);
+                apiKey = document.getElementById('api-key').value.trim();
+                customModel = customModelInput.value.trim();
+                
+                saveSettingsToStorage();
+                settingsModal.classList.add('hidden');
+                addSystemMessage('Settings updated');
+            });
+            
+            // Clear chat
+            clearChatBtn.addEventListener('click', function() {
+                chatHistory = [];
+                saveChatHistory();
+                renderChatHistory();
+            });
+            
+            // Handle form submission
+            chatForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const message = messageInput.value.trim();
+                if (message) {
+                    addUserMessage(message);
+                    messageInput.value = '';
+                    sendBtn.disabled = true;
+                    
+                    try {
+                        await getBotResponse(message);
+                    } catch (error) {
+                        addSystemMessage(`Error: ${error.message}`);
+                    } finally {
+                        sendBtn.disabled = false;
+                        messageInput.focus();
+                    }
+                }
+            });
+            
+            // Microphone button (speech recognition)
+            micBtn.addEventListener('click', function() {
+                if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    const recognition = new SpeechRecognition();
+                    recognition.lang = 'en-US';
+                    recognition.interimResults = false;
+                    
+                    recognition.onstart = function() {
+                        micBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+                        micBtn.classList.add('text-red-500');
+                        messageInput.placeholder = 'Listening...';
+                    };
+                    
+                    recognition.onresult = function(event) {
+                        const transcript = event.results[0][0].transcript;
+                        messageInput.value = transcript;
+                        micBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                        micBtn.classList.remove('text-red-500');
+                        messageInput.placeholder = 'Type your message...';
+                        messageInput.focus();
+                    };
+                    
+                    recognition.onerror = function(event) {
+                        micBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                        micBtn.classList.remove('text-red-500');
+                        messageInput.placeholder = 'Type your message...';
+                        addSystemMessage('Speech recognition error: ' + event.error);
+                    };
+                    
+                    recognition.start();
+                } else {
+                    addSystemMessage('Speech recognition not supported in your browser');
+                }
+            });
+            
+            // Add user message to chat
+            function addUserMessage(message, saveToHistory = true) {
+                const messageElement = document.createElement('div');
+                messageElement.className = 'flex justify-end message-enter';
+                messageElement.innerHTML = `
+                    <div class="bg-indigo-600 dark:bg-hf-blue text-white dark:text-black rounded-xl rounded-tr-none px-3 py-2 md:px-4 md:py-3 max-w-xs md:max-w-md lg:max-w-lg">
+                        <p class="text-sm md:text-base">${message}</p>
+                    </div>
+                `;
+                chatMessages.appendChild(messageElement);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                if (saveToHistory) {
+                    chatHistory.push({ role: 'user', content: message });
+                    saveChatHistory();
+                }
+            }
+            
+            // Add bot message to chat
+            function addBotMessage(message, saveToHistory = true) {
+                const messageElement = document.createElement('div');
+                messageElement.className = 'flex justify-start message-enter';
+                
+                // Simple markdown support
+                const formattedMessage = message
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // bold
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>') // italic
+                    .replace(/`(.*?)`/g, '<code class="dark:bg-gray-700">$1</code>') // code
+                    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" class="text-indigo-500 dark:text-hf-blue hover:underline">$1</a>'); // links
+                
+                messageElement.innerHTML = `
+                    <div class="bg-gray-100 dark:bg-gray-600 rounded-xl rounded-tl-none px-3 py-2 md:px-4 md:py-3 max-w-xs md:max-w-md lg:max-w-lg markdown">
+                        <p class="text-gray-800 dark:text-gray-100 text-sm md:text-base">${formattedMessage}</p>
+                    </div>
+                `;
+                chatMessages.appendChild(messageElement);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                if (saveToHistory) {
+                    chatHistory.push({ role: 'assistant', content: message });
+                    saveChatHistory();
+                }
+            }
+            
+            // Add system message
+            function addSystemMessage(message) {
+                const messageElement = document.createElement('div');
+                messageElement.className = 'flex justify-center message-enter';
+                messageElement.innerHTML = `
+                    <div class="bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-xl px-3 py-2 text-xs md:text-sm max-w-xs md:max-w-md lg:max-w-lg">
+                        <p>${message}</p>
+                    </div>
+                `;
+                chatMessages.appendChild(messageElement);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                chatHistory.push({ role: 'system', content: message });
+                saveChatHistory();
+            }
+            
+            // Show typing indicator
+            function showTypingIndicator() {
+                if (isBotTyping) return;
+                
+                isBotTyping = true;
+                modelStatus.textContent = 'Typing...';
+                const typingElement = document.createElement('div');
+                typingElement.className = 'flex justify-start';
+                typingElement.innerHTML = `
+                    <div class="bg-gray-100 dark:bg-gray-600 rounded-xl rounded-tl-none px-3 py-2 md:px-4 md:py-3 max-w-xs md:max-w-md lg:max-w-lg">
+                        <p class="typing-indicator text-gray-500 dark:text-gray-300 text-sm md:text-base">Thinking</p>
+                    </div>
+                `;
+                chatMessages.appendChild(typingElement);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                return typingElement;
+            }
+            
+            // Remove typing indicator
+            function removeTypingIndicator(typingElement) {
+                if (typingElement && typingElement.parentNode) {
+                    typingElement.remove();
+                }
+                isBotTyping = false;
+                modelStatus.textContent = 'Model is ready';
+            }
+            
+            // Get bot response from Hugging Face API
+            async function getBotResponse(message) {
+                const typingElement = showTypingIndicator();
+                
+                try {
+                    // Determine which model to use
+                    const modelToUse = currentModel === 'custom' ? customModel : currentModel;
+                    
+                    if (!modelToUse) {
+                        throw new Error('Please specify a custom model in settings');
+                    }
+                    
+                    // Check if API key is required for the selected model
+                    const needsApiKey = !['gpt2', 'facebook/blenderbot-400M-distill', 'microsoft/DialoGPT-medium'].includes(modelToUse);
+                    
+                    if (needsApiKey && !apiKey) {
+                        throw new Error('API key is required for this model. Please add your Hugging Face API key in settings.');
+                    }
+                    
+                    const apiUrl = `https://api-inference.huggingface.co/models/${modelToUse}`;
+                    
+                    const headers = {
+                        'Content-Type': 'application/json',
+                    };
+                    
+                    if (needsApiKey) {
+                        headers['Authorization'] = `Bearer ${apiKey}`;
+                    }
+                    
+                    // Format the input based on model requirements
+                    let inputs;
+                    if (modelToUse.includes('blenderbot')) {
+                        // BlenderBot expects a conversation history
+                        inputs = {
+                            past_user_inputs: chatHistory
+                                .filter(msg => msg.role === 'user')
+                                .slice(-5)
+                                .map(msg => msg.content),
+                            generated_responses: chatHistory
+                                .filter(msg => msg.role === 'assistant')
+                                .slice(-5)
+                                .map(msg => msg.content),
+                            text: message
+                        };
+                    } else if (modelToUse.includes('DialoGPT')) {
+                        // DialoGPT expects a conversation history
+                        const pastMessages = chatHistory
+                            .filter(msg => msg.role === 'user' || msg.role === 'assistant')
+                            .slice(-10);
+                        
+                        inputs = pastMessages.map(msg => msg.content).join('\n') + '\n' + message;
+                    } else {
+                        // Most models just take the input text
+                        inputs = message;
+                    }
+                    
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify({
+                            inputs: inputs,
+                            parameters: {
+                                temperature: temperature,
+                                max_new_tokens: maxLength,
+                                return_full_text: false
+                            },
+                            options: {
+                                use_cache: true,
+                                wait_for_model: true
+                            }
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Failed to get response from model');
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // Remove typing indicator
+                    removeTypingIndicator(typingElement);
+                    
+                    // Extract the generated text based on model response format
+                    let generatedText;
+                    if (Array.isArray(data)) {
+                        // Some models return an array
+                        generatedText = data[0].generated_text || data[0].text || data[0].answer;
+                    } else if (typeof data === 'object') {
+                        // Some models return an object
+                        generatedText = data.generated_text || data.text || data.answer;
+                    } else {
+                        // Some models return just the text
+                        generatedText = data;
+                    }
+                    
+                    if (!generatedText) {
+                        throw new Error('No response generated from model');
+                    }
+                    
+                    // Clean up the response
+                    generatedText = generatedText.trim();
+                    
+                    // For conversation models, we might need to extract just the new response
+                    if (modelToUse.includes('blenderbot') && typeof generatedText === 'object') {
+                        generatedText = generatedText.generated_text;
+                    }
+                    
+                    addBotMessage(generatedText);
+                    
+                } catch (error) {
+                    removeTypingIndicator(typingElement);
+                    addSystemMessage(`Error: ${error.message}`);
+                    console.error('API Error:', error);
+                }
+            }
+            
+            // Initialize the app
+            initializeFromStorage();
+        });
+    </script>
+</body>
+</html>
