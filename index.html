@@ -297,7 +297,7 @@
             });
             
             // Functions
-            function handleLogin(e) {
+            async function handleLogin(e) {
                 e.preventDefault();
                 const tokenInput = document.getElementById('hf-token');
                 const modelSelect = document.getElementById('model-selection');
@@ -309,20 +309,33 @@
                     showError('Please enter your Hugging Face token');
                     return;
                 }
-                
-                // In a real app, you would verify the token with HF API
-                // For this demo, we'll just proceed
-                loginScreen.classList.add('hidden');
-                app.classList.remove('hidden');
-                
-                // Update UI with selected model
-                const selectedModelObj = availableModels.find(m => m.id === selectedModel);
-                if (selectedModelObj) {
-                    currentModel.textContent = selectedModelObj.name;
+
+                // Real API verification
+                try {
+                    const resp = await fetch("https://huggingface.co/api/whoami-v2", {
+                        headers: {
+                            "Authorization": `Bearer ${hfToken}`
+                        }
+                    });
+                    if (!resp.ok) {
+                        showError("Token is invalid or expired. Please check your Hugging Face token.");
+                        return;
+                    }
+                    // Token is valid, continue
+                    loginScreen.classList.add('hidden');
+                    app.classList.remove('hidden');
+                    
+                    // Update UI with selected model
+                    const selectedModelObj = availableModels.find(m => m.id === selectedModel);
+                    if (selectedModelObj) {
+                        currentModel.textContent = selectedModelObj.name;
+                    }
+                    
+                    // Store token in settings
+                    document.getElementById('settings-hf-token').value = hfToken;
+                } catch (err) {
+                    showError("Network error during token validation. Try again.");
                 }
-                
-                // Store token in settings
-                document.getElementById('settings-hf-token').value = hfToken;
             }
             
             function showError(message) {
@@ -340,8 +353,8 @@
                     charCount.classList.remove('text-red-500');
                 }
             }
-            
-            function sendMessage() {
+
+            async function sendMessage() {
                 const message = userInput.value.trim();
                 if (!message) return;
                 
@@ -352,27 +365,52 @@
                 
                 // Show typing indicator
                 const typingId = showTypingIndicator();
-                
-                // In a real app, you would call the HF API here
-                // For this demo, we'll simulate a response after a delay
-                setTimeout(() => {
+
+                try {
+                    const apiUrl = `https://api-inference.huggingface.co/models/${selectedModel}`;
+                    const response = await fetch(apiUrl, {
+                        method: "POST",
+                        headers: {
+                            "Authorization": `Bearer ${hfToken}`,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            inputs: message,
+                            parameters: {
+                                max_length: maxLength,
+                                temperature: temperature
+                            }
+                        })
+                    });
+
                     // Remove typing indicator
                     removeTypingIndicator(typingId);
-                    
-                    // Add bot response
-                    const responses = [
-                        "I'm an AI model simulating a response. In a real implementation, this would connect to Hugging Face's API.",
-                        "This is where the model's response would appear. The actual API call would use your token and selected model.",
-                        "If this were connected, you'd see the AI's generated response here based on your input.",
-                        "The Hugging Face API would process your message and return a completion from the selected model."
-                    ];
-                    
-                    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-                    addMessageToChat('bot', randomResponse);
-                    
-                    // Scroll to bottom
+
+                    if (!response.ok) {
+                        const err = await response.text();
+                        addMessageToChat('bot', "Error from Hugging Face API: " + err);
+                        return;
+                    }
+
+                    const data = await response.json();
+
+                    let botReply = '';
+                    if (Array.isArray(data) && data[0].generated_text) {
+                        botReply = data[0].generated_text;
+                    } else if (data.generated_text) {
+                        botReply = data.generated_text;
+                    } else if (data.hasOwnProperty('error')) {
+                        botReply = "API Error: " + data.error;
+                    } else {
+                        botReply = JSON.stringify(data, null, 2);
+                    }
+
+                    addMessageToChat('bot', botReply);
                     chatContainer.scrollTop = chatContainer.scrollHeight;
-                }, 1500);
+                } catch (err) {
+                    removeTypingIndicator(typingId);
+                    addMessageToChat('bot', "Network or API error: " + err.message);
+                }
             }
             
             function addMessageToChat(sender, message) {
