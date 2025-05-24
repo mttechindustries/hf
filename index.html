@@ -1,526 +1,517 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customizable AI Chatbot</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        .animate-pulse {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        .chat-container {
-            height: calc(100vh - 180px);
-        }
-        .message-tail {
-            position: absolute;
-            width: 0;
-            height: 0;
-            border-style: solid;
-        }
-        .user-message-tail {
-            border-width: 0 0 12px 12px;
-            border-color: transparent transparent #3b82f6 transparent;
-            right: -8px;
-            bottom: 0;
-        }
-        .bot-message-tail {
-            border-width: 0 12px 12px 0;
-            border-color: transparent #e5e7eb transparent transparent;
-            left: -8px;
-            bottom: 0;
-        }
-        .gradient-bg {
-            background: linear-gradient(135deg, #6b46c1 0%, #3b82f6 100%);
-        }
-        .model-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        }
-        .slide-in {
-            animation: slideIn 0.3s ease-out forwards;
-        }
-        @keyframes slideIn {
-            from {
-                transform: translateY(20px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customizable AI Chatbot (Enhanced)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .animate-pulse {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    .chat-container {
+      height: calc(100vh - 180px);
+    }
+    .message-tail {
+      position: absolute;
+      width: 0;
+      height: 0;
+      border-style: solid;
+    }
+    .user-message-tail {
+      border-width: 0 0 12px 12px;
+      border-color: transparent transparent #3b82f6 transparent;
+      right: -8px;
+      bottom: 0;
+    }
+    .bot-message-tail {
+      border-width: 0 12px 12px 0;
+      border-color: transparent #e5e7eb transparent transparent;
+      left: -8px;
+      bottom: 0;
+    }
+    .gradient-bg {
+      background: linear-gradient(135deg, #6b46c1 0%, #3b82f6 100%);
+    }
+    .slide-in {
+      animation: slideIn 0.3s ease-out forwards;
+    }
+    @keyframes slideIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to   { transform: translateY(0); opacity: 1; }
+    }
+  </style>
 </head>
 <body class="bg-gray-100 font-sans">
-    <!-- Login Screen -->
-    <div id="login-screen" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50 transition-opacity duration-300">
-        <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md slide-in">
-            <div class="text-center mb-8">
-                <h1 class="text-3xl font-bold text-gray-800">AI Chatbot</h1>
-                <p class="text-gray-600 mt-2">Connect to Hugging Face models</p>
-            </div>
-            
-            <form id="login-form" class="space-y-6">
-                <div>
-                    <label for="hf-token" class="block text-sm font-medium text-gray-700 mb-1">Hugging Face Token</label>
-                    <input type="password" id="hf-token" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="Enter your Hugging Face API token" required>
-                    <p class="mt-1 text-xs text-gray-500">Get your token from <a href="https://huggingface.co/settings/tokens" target="_blank" class="text-blue-500 hover:underline">HF Settings</a></p>
-                </div>
-                
-                <div>
-                    <label for="model-selection" class="block text-sm font-medium text-gray-700 mb-1">Default Model</label>
-                    <select id="model-selection" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
-                        <option value="gpt2">GPT-2</option>
-                        <option value="facebook/blenderbot-400M-distill">BlenderBot 400M</option>
-                        <option value="microsoft/DialoGPT-medium">DialoGPT Medium</option>
-                        <option value="facebook/blenderbot_small-90M">BlenderBot Small</option>
-                        <option value="microsoft/DialoGPT-small">DialoGPT Small</option>
-                    </select>
-                </div>
-                
-                <div id="error-message" class="hidden bg-red-50 border-l-4 border-red-500 p-4 mb-4">
-                    <div class="flex">
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-exclamation-circle text-red-500"></i>
-                        </div>
-                        <div class="ml-3">
-                            <p class="text-sm text-red-700" id="error-text">Invalid credentials. Please try again.</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <button type="submit" class="w-full gradient-bg text-white py-3 px-4 rounded-lg font-medium hover:opacity-90 transition flex items-center justify-center">
-                    <span>Connect</span>
-                    <i class="fas fa-arrow-right ml-2"></i>
-                </button>
-            </form>
+  <!-- Login Screen -->
+  <div id="login-screen" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50 transition-opacity duration-300">
+    <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md slide-in">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">AI Chatbot</h1>
+        <p class="text-gray-600 mt-2">Connect to Hugging Face models</p>
+      </div>
+      <form id="login-form" class="space-y-6">
+        <div>
+          <label for="hf-token" class="block text-sm font-medium text-gray-700 mb-1">Hugging Face Token</label>
+          <input type="password" id="hf-token" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="Enter your Hugging Face API token" required>
+          <p class="mt-1 text-xs text-gray-500">Get your token from <a href="https://huggingface.co/settings/tokens" target="_blank" class="text-blue-500 hover:underline">HF Settings</a></p>
         </div>
-    </div>
-
-    <!-- Main App -->
-    <div id="app" class="hidden h-screen flex flex-col">
-        <!-- Header -->
-        <header class="gradient-bg text-white shadow-md">
-            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-                <div class="flex items-center space-x-3">
-                    <i class="fas fa-robot text-2xl"></i>
-                    <h1 class="text-xl font-bold">AI Chatbot</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="relative group">
-                        <button id="model-dropdown-btn" class="flex items-center space-x-1 bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-full text-sm transition">
-                            <span id="current-model">GPT-2</span>
-                            <i class="fas fa-chevron-down text-xs"></i>
-                        </button>
-                        <div id="model-dropdown" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg z-10 py-1">
-                            <div class="px-4 py-2 border-b border-gray-100">
-                                <p class="text-xs font-semibold text-gray-500">AVAILABLE MODELS</p>
-                            </div>
-                            <div id="model-list" class="max-h-60 overflow-y-auto">
-                                <!-- Models will be added here dynamically -->
-                            </div>
-                        </div>
-                    </div>
-                    <button id="settings-btn" class="text-white hover:text-gray-200 transition">
-                        <i class="fas fa-cog"></i>
-                    </button>
-                </div>
-            </div>
-        </header>
-
-        <!-- Chat Container -->
-        <div class="flex-1 overflow-hidden container mx-auto px-4 py-4 flex flex-col">
-            <div id="chat-container" class="chat-container overflow-y-auto flex-1 space-y-4 p-4">
-                <div class="flex justify-center">
-                    <div class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm">
-                        <i class="fas fa-info-circle mr-1"></i> Connected to Hugging Face API
-                    </div>
-                </div>
-                
-                <!-- Sample welcome message -->
-                <div class="flex items-start space-x-3">
-                    <div class="flex-shrink-0 bg-gray-200 rounded-full p-2">
-                        <i class="fas fa-robot text-gray-600"></i>
-                    </div>
-                    <div class="relative bg-gray-100 rounded-lg px-4 py-3 max-w-[80%]">
-                        <div class="message-tail bot-message-tail"></div>
-                        <p class="text-gray-800">Hello! I'm an AI assistant powered by Hugging Face models. How can I help you today?</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Input Area -->
-            <div class="mt-4 bg-white rounded-lg shadow-md p-4">
-                <div class="flex items-center space-x-2">
-                    <textarea id="user-input" rows="2" class="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition resize-none" placeholder="Type your message..." maxlength="500"></textarea>
-                    <button id="send-btn" class="gradient-bg text-white rounded-full p-3 hover:opacity-90 transition">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                </div>
-                <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
-                    <div class="flex items-center space-x-2">
-                        <button class="hover:text-blue-500 transition">
-                            <i class="fas fa-sliders-h"></i> Parameters
-                        </button>
-                    </div>
-                    <div>
-                        <span id="char-count">0</span>/500
-                    </div>
-                </div>
-            </div>
+        <div>
+          <label for="model-selection" class="block text-sm font-medium text-gray-700 mb-1">Default Model</label>
+          <select id="model-selection" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+            <option disabled selected>Loading available models...</option>
+          </select>
+          <button type="button" id="add-model-btn" class="mt-2 text-xs text-blue-600 hover:underline">+ Add custom model</button>
+          <div id="custom-model-div" class="hidden mt-2">
+            <input type="text" id="custom-model-input" class="w-full px-2 py-1 border border-gray-300 rounded" placeholder="e.g. meta-llama/Llama-2-7b-chat-hf">
+            <button type="button" id="save-custom-model" class="ml-1 px-2 py-1 text-xs gradient-bg text-white rounded">Add</button>
+          </div>
         </div>
-    </div>
-
-    <!-- Settings Modal -->
-    <div id="settings-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-800">Settings</h2>
-                <button id="close-settings" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times"></i>
-                </button>
+        <div id="error-message" class="hidden bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <i class="fas fa-exclamation-circle text-red-500"></i>
             </div>
-            
-            <div class="space-y-6">
-                <div>
-                    <h3 class="font-medium text-gray-800 mb-2">API Configuration</h3>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Hugging Face Token</label>
-                            <input type="password" id="settings-hf-token" class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="Enter your HF token">
-                        </div>
-                    </div>
-                </div>
-                
-                <div>
-                    <h3 class="font-medium text-gray-800 mb-2">Model Parameters</h3>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Max Response Length</label>
-                            <input type="range" id="max-length" min="20" max="500" value="100" class="w-full">
-                            <div class="flex justify-between text-xs text-gray-500 mt-1">
-                                <span>20</span>
-                                <span id="max-length-value">100</span>
-                                <span>500</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Temperature</label>
-                            <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7" class="w-full">
-                            <div class="flex justify-between text-xs text-gray-500 mt-1">
-                                <span>0 (Precise)</span>
-                                <span id="temperature-value">0.7</span>
-                                <span>2 (Creative)</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="pt-4 border-t border-gray-200">
-                    <button id="save-settings" class="w-full gradient-bg text-white py-2 px-4 rounded-lg font-medium hover:opacity-90 transition">
-                        Save Settings
-                    </button>
-                </div>
+            <div class="ml-3">
+              <p class="text-sm text-red-700" id="error-text">Invalid credentials. Please try again.</p>
             </div>
+          </div>
         </div>
+        <button type="submit" class="w-full gradient-bg text-white py-3 px-4 rounded-lg font-medium hover:opacity-90 transition flex items-center justify-center">
+          <span>Connect</span>
+          <i class="fas fa-arrow-right ml-2"></i>
+        </button>
+      </form>
     </div>
+  </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // DOM Elements
-            const loginScreen = document.getElementById('login-screen');
-            const loginForm = document.getElementById('login-form');
-            const errorMessage = document.getElementById('error-message');
-            const app = document.getElementById('app');
-            const chatContainer = document.getElementById('chat-container');
-            const userInput = document.getElementById('user-input');
-            const sendBtn = document.getElementById('send-btn');
-            const charCount = document.getElementById('char-count');
-            const modelDropdownBtn = document.getElementById('model-dropdown-btn');
-            const modelDropdown = document.getElementById('model-dropdown');
-            const modelList = document.getElementById('model-list');
-            const currentModel = document.getElementById('current-model');
-            const settingsBtn = document.getElementById('settings-btn');
-            const settingsModal = document.getElementById('settings-modal');
-            const closeSettings = document.getElementById('close-settings');
-            const saveSettings = document.getElementById('save-settings');
-            
-            // State
-            let hfToken = '';
-            let selectedModel = 'gpt2';
-            let conversationHistory = [];
-            const availableModels = [
-                { id: 'gpt2', name: 'GPT-2', description: 'Small general-purpose model' },
-                { id: 'facebook/blenderbot-400M-distill', name: 'BlenderBot 400M', description: 'Conversational model' },
-                { id: 'microsoft/DialoGPT-medium', name: 'DialoGPT Medium', description: 'Dialogue model' },
-                { id: 'facebook/blenderbot_small-90M', name: 'BlenderBot Small', description: 'Lightweight conversational model' },
-                { id: 'microsoft/DialoGPT-small', name: 'DialoGPT Small', description: 'Small dialogue model' }
-            ];
-            
-            // Model parameters
-            let maxLength = 100;
-            let temperature = 0.7;
-            
-            // Initialize
-            renderModelList();
-            
-            // Event Listeners
-            loginForm.addEventListener('submit', handleLogin);
-            userInput.addEventListener('input', updateCharCount);
-            sendBtn.addEventListener('click', sendMessage);
-            userInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
+  <!-- Main App -->
+  <div id="app" class="hidden h-screen flex flex-col">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-md">
+      <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+          <i class="fas fa-robot text-2xl"></i>
+          <h1 class="text-xl font-bold">AI Chatbot</h1>
+        </div>
+        <div class="flex items-center space-x-4">
+          <div class="relative group">
+            <button id="model-dropdown-btn" class="flex items-center space-x-1 bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-full text-sm transition">
+              <span id="current-model">GPT-2</span>
+              <i class="fas fa-chevron-down text-xs"></i>
+            </button>
+            <div id="model-dropdown" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg z-10 py-1">
+              <div class="px-4 py-2 border-b border-gray-100">
+                <p class="text-xs font-semibold text-gray-500">AVAILABLE MODELS</p>
+              </div>
+              <div id="model-list" class="max-h-60 overflow-y-auto">
+                <!-- Models will be added here dynamically -->
+              </div>
+            </div>
+          </div>
+          <button id="settings-btn" class="text-white hover:text-gray-200 transition">
+            <i class="fas fa-cog"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Chat Container -->
+    <div class="flex-1 overflow-hidden container mx-auto px-4 py-4 flex flex-col">
+      <div id="chat-container" class="chat-container overflow-y-auto flex-1 space-y-4 p-4">
+        <div class="flex justify-center">
+          <div class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm">
+            <i class="fas fa-info-circle mr-1"></i> Connected to Hugging Face API
+          </div>
+        </div>
+        <!-- Sample welcome message -->
+        <div class="flex items-start space-x-3">
+          <div class="flex-shrink-0 bg-gray-200 rounded-full p-2">
+            <i class="fas fa-robot text-gray-600"></i>
+          </div>
+          <div class="relative bg-gray-100 rounded-lg px-4 py-3 max-w-[80%]">
+            <div class="message-tail bot-message-tail"></div>
+            <p class="text-gray-800">Hello! I'm an AI assistant powered by Hugging Face models. How can I help you today?</p>
+          </div>
+        </div>
+      </div>
+      <!-- Input Area -->
+      <div class="mt-4 bg-white rounded-lg shadow-md p-4">
+        <div class="flex items-center space-x-2">
+          <textarea id="user-input" rows="2" class="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition resize-none" placeholder="Type your message..." maxlength="500"></textarea>
+          <button id="send-btn" class="gradient-bg text-white rounded-full p-3 hover:opacity-90 transition">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </div>
+        <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
+          <div class="flex items-center space-x-2">
+            <button class="hover:text-blue-500 transition">
+              <i class="fas fa-sliders-h"></i> Parameters
+            </button>
+          </div>
+          <div>
+            <span id="char-count">0</span>/500
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-gray-800">Settings</h2>
+        <button id="close-settings" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="space-y-6">
+        <div>
+          <h3 class="font-medium text-gray-800 mb-2">API Configuration</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Hugging Face Token</label>
+              <input type="password" id="settings-hf-token" class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="Enter your HF token">
+            </div>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-medium text-gray-800 mb-2">Model Parameters</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Max Response Length</label>
+              <input type="range" id="max-length" min="20" max="500" value="100" class="w-full">
+              <div class="flex justify-between text-xs text-gray-500 mt-1">
+                <span>20</span>
+                <span id="max-length-value">100</span>
+                <span>500</span>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Temperature</label>
+              <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7" class="w-full">
+              <div class="flex justify-between text-xs text-gray-500 mt-1">
+                <span>0 (Precise)</span>
+                <span id="temperature-value">0.7</span>
+                <span>2 (Creative)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pt-4 border-t border-gray-200">
+          <button id="save-settings" class="w-full gradient-bg text-white py-2 px-4 rounded-lg font-medium hover:opacity-90 transition">
+            Save Settings
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // DOM Elements
+      const loginScreen = document.getElementById('login-screen');
+      const loginForm = document.getElementById('login-form');
+      const errorMessage = document.getElementById('error-message');
+      const app = document.getElementById('app');
+      const chatContainer = document.getElementById('chat-container');
+      const userInput = document.getElementById('user-input');
+      const sendBtn = document.getElementById('send-btn');
+      const charCount = document.getElementById('char-count');
+      const modelDropdownBtn = document.getElementById('model-dropdown-btn');
+      const modelDropdown = document.getElementById('model-dropdown');
+      const modelList = document.getElementById('model-list');
+      const currentModel = document.getElementById('current-model');
+      const settingsBtn = document.getElementById('settings-btn');
+      const settingsModal = document.getElementById('settings-modal');
+      const closeSettings = document.getElementById('close-settings');
+      const saveSettings = document.getElementById('save-settings');
+      const modelSelect = document.getElementById('model-selection');
+      const addModelBtn = document.getElementById('add-model-btn');
+      const customModelDiv = document.getElementById('custom-model-div');
+      const customModelInput = document.getElementById('custom-model-input');
+      const saveCustomModel = document.getElementById('save-custom-model');
+      
+      // State
+      let hfToken = '';
+      let selectedModel = 'gpt2';
+      let availableModels = [
+        { id: 'gpt2', name: 'GPT-2', description: 'Small general-purpose model' },
+        { id: 'facebook/blenderbot-400M-distill', name: 'BlenderBot 400M', description: 'Conversational model' },
+        { id: 'microsoft/DialoGPT-medium', name: 'DialoGPT Medium', description: 'Dialogue model' },
+        { id: 'facebook/blenderbot_small-90M', name: 'BlenderBot Small', description: 'Lightweight conversational model' },
+        { id: 'microsoft/DialoGPT-small', name: 'DialoGPT Small', description: 'Small dialogue model' }
+      ];
+      let maxLength = 100;
+      let temperature = 0.7;
+
+      // Model discovery: Only show models that actually support Inference API
+      async function verifyModels(token) {
+        modelSelect.innerHTML = '<option disabled>Checking model availability...</option>';
+        const checked = [];
+        for (const model of availableModels) {
+          try {
+            const resp = await fetch(`https://api-inference.huggingface.co/models/${model.id}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
             });
-            modelDropdownBtn.addEventListener('click', toggleModelDropdown);
-            settingsBtn.addEventListener('click', openSettings);
-            closeSettings.addEventListener('click', closeSettingsModal);
-            saveSettings.addEventListener('click', saveSettingsHandler);
-            
-            // Slider event listeners
-            document.getElementById('max-length').addEventListener('input', function() {
-                maxLength = parseInt(this.value);
-                document.getElementById('max-length-value').textContent = maxLength;
-            });
-            
-            document.getElementById('temperature').addEventListener('input', function() {
-                temperature = parseFloat(this.value);
-                document.getElementById('temperature-value').textContent = temperature;
-            });
-            
-            // Functions
-            async function handleLogin(e) {
-                e.preventDefault();
-                const tokenInput = document.getElementById('hf-token');
-                const modelSelect = document.getElementById('model-selection');
-                
-                hfToken = tokenInput.value.trim();
-                selectedModel = modelSelect.value;
-                
-                if (!hfToken) {
-                    showError('Please enter your Hugging Face token');
-                    return;
-                }
+            if (resp.status === 200 || resp.status === 503) {
+              checked.push(model);
+            }
+          } catch {}
+        }
+        if (checked.length === 0) {
+          checked.push({id:'gpt2', name:'GPT-2', description:'Small general-purpose model'});
+        }
+        availableModels = checked;
+        renderModelOptions();
+      }
 
-                // Real API verification
-                try {
-                    const resp = await fetch("https://huggingface.co/api/whoami-v2", {
-                        headers: {
-                            "Authorization": `Bearer ${hfToken}`
-                        }
-                    });
-                    if (!resp.ok) {
-                        showError("Token is invalid or expired. Please check your Hugging Face token.");
-                        return;
-                    }
-                    // Token is valid, continue
-                    loginScreen.classList.add('hidden');
-                    app.classList.remove('hidden');
-                    
-                    // Update UI with selected model
-                    const selectedModelObj = availableModels.find(m => m.id === selectedModel);
-                    if (selectedModelObj) {
-                        currentModel.textContent = selectedModelObj.name;
-                    }
-                    
-                    // Store token in settings
-                    document.getElementById('settings-hf-token').value = hfToken;
-                } catch (err) {
-                    showError("Network error during token validation. Try again.");
-                }
-            }
-            
-            function showError(message) {
-                errorMessage.classList.remove('hidden');
-                document.getElementById('error-text').textContent = message;
-            }
-            
-            function updateCharCount() {
-                const count = userInput.value.length;
-                charCount.textContent = count;
-                
-                if (count > 500) {
-                    charCount.classList.add('text-red-500');
-                } else {
-                    charCount.classList.remove('text-red-500');
-                }
-            }
-
-            async function sendMessage() {
-                const message = userInput.value.trim();
-                if (!message) return;
-                
-                // Add user message to chat
-                addMessageToChat('user', message);
-                userInput.value = '';
-                updateCharCount();
-                
-                // Show typing indicator
-                const typingId = showTypingIndicator();
-
-                try {
-                    const apiUrl = `https://api-inference.huggingface.co/models/${selectedModel}`;
-                    const response = await fetch(apiUrl, {
-                        method: "POST",
-                        headers: {
-                            "Authorization": `Bearer ${hfToken}`,
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            inputs: message,
-                            parameters: {
-                                max_length: maxLength,
-                                temperature: temperature
-                            }
-                        })
-                    });
-
-                    // Remove typing indicator
-                    removeTypingIndicator(typingId);
-
-                    if (!response.ok) {
-                        const err = await response.text();
-                        addMessageToChat('bot', "Error from Hugging Face API: " + err);
-                        return;
-                    }
-
-                    const data = await response.json();
-
-                    let botReply = '';
-                    if (Array.isArray(data) && data[0].generated_text) {
-                        botReply = data[0].generated_text;
-                    } else if (data.generated_text) {
-                        botReply = data.generated_text;
-                    } else if (data.hasOwnProperty('error')) {
-                        botReply = "API Error: " + data.error;
-                    } else {
-                        botReply = JSON.stringify(data, null, 2);
-                    }
-
-                    addMessageToChat('bot', botReply);
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                } catch (err) {
-                    removeTypingIndicator(typingId);
-                    addMessageToChat('bot', "Network or API error: " + err.message);
-                }
-            }
-            
-            function addMessageToChat(sender, message) {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = `flex items-start space-x-3 ${sender === 'user' ? 'justify-end' : ''}`;
-                
-                if (sender === 'user') {
-                    messageDiv.innerHTML = `
-                        <div class="relative bg-blue-100 rounded-lg px-4 py-3 max-w-[80%]">
-                            <div class="message-tail user-message-tail"></div>
-                            <p class="text-blue-800">${message}</p>
-                        </div>
-                        <div class="flex-shrink-0 bg-blue-500 rounded-full p-2 text-white">
-                            <i class="fas fa-user"></i>
-                        </div>
-                    `;
-                } else {
-                    messageDiv.innerHTML = `
-                        <div class="flex-shrink-0 bg-gray-200 rounded-full p-2">
-                            <i class="fas fa-robot text-gray-600"></i>
-                        </div>
-                        <div class="relative bg-gray-100 rounded-lg px-4 py-3 max-w-[80%]">
-                            <div class="message-tail bot-message-tail"></div>
-                            <p class="text-gray-800">${message}</p>
-                        </div>
-                    `;
-                }
-                
-                chatContainer.appendChild(messageDiv);
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-            }
-            
-            function showTypingIndicator() {
-                const typingId = 'typing-' + Date.now();
-                const typingDiv = document.createElement('div');
-                typingDiv.id = typingId;
-                typingDiv.className = 'flex items-start space-x-3';
-                typingDiv.innerHTML = `
-                    <div class="flex-shrink-0 bg-gray-200 rounded-full p-2">
-                        <i class="fas fa-robot text-gray-600"></i>
-                    </div>
-                    <div class="relative bg-gray-100 rounded-lg px-4 py-3 max-w-[80%]">
-                        <div class="message-tail bot-message-tail"></div>
-                        <div class="flex space-x-2">
-                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
-                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-100"></div>
-                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-200"></div>
-                        </div>
-                    </div>
-                `;
-                
-                chatContainer.appendChild(typingDiv);
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-                return typingId;
-            }
-            
-            function removeTypingIndicator(id) {
-                const element = document.getElementById(id);
-                if (element) {
-                    element.remove();
-                }
-            }
-            
-            function renderModelList() {
-                modelList.innerHTML = '';
-                availableModels.forEach(model => {
-                    const modelElement = document.createElement('div');
-                    modelElement.className = 'px-4 py-2 hover:bg-gray-50 cursor-pointer transition';
-                    modelElement.innerHTML = `
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <p class="font-medium text-gray-800">${model.name}</p>
-                                <p class="text-xs text-gray-500">${model.description}</p>
-                            </div>
-                            ${model.id === selectedModel ? '<i class="fas fa-check text-blue-500"></i>' : ''}
-                        </div>
-                    `;
-                    
-                    modelElement.addEventListener('click', () => {
-                        selectedModel = model.id;
-                        currentModel.textContent = model.name;
-                        modelDropdown.classList.add('hidden');
-                        addMessageToChat('system', `Model changed to ${model.name}`);
-                    });
-                    
-                    modelList.appendChild(modelElement);
-                });
-            }
-            
-            function toggleModelDropdown() {
-                modelDropdown.classList.toggle('hidden');
-            }
-            
-            function openSettings() {
-                settingsModal.classList.remove('hidden');
-            }
-            
-            function closeSettingsModal() {
-                settingsModal.classList.add('hidden');
-            }
-            
-            function saveSettingsHandler() {
-                const newToken = document.getElementById('settings-hf-token').value.trim();
-                if (newToken) {
-                    hfToken = newToken;
-                }
-                closeSettingsModal();
-                addMessageToChat('system', 'Settings saved successfully');
-            }
+      function renderModelOptions() {
+        modelSelect.innerHTML = '';
+        availableModels.forEach(model => {
+          const opt = document.createElement('option');
+          opt.value = model.id;
+          opt.textContent = model.name;
+          modelSelect.appendChild(opt);
         });
-    </script>
+      }
+
+      // Show/hide custom model field
+      addModelBtn.onclick = () => customModelDiv.classList.toggle('hidden');
+      saveCustomModel.onclick = () => {
+        const id = customModelInput.value.trim();
+        if (id) {
+          availableModels.push({ id, name: id, description: '(Custom model)' });
+          renderModelOptions();
+          modelSelect.value = id;
+          customModelDiv.classList.add('hidden');
+          customModelInput.value = '';
+        }
+      };
+
+      renderModelOptions();
+
+      // Event Listeners
+      loginForm.addEventListener('submit', handleLogin);
+      userInput.addEventListener('input', updateCharCount);
+      sendBtn.addEventListener('click', sendMessage);
+      userInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+      modelDropdownBtn.addEventListener('click', toggleModelDropdown);
+      settingsBtn.addEventListener('click', openSettings);
+      closeSettings.addEventListener('click', closeSettingsModal);
+      saveSettings.addEventListener('click', saveSettingsHandler);
+      document.getElementById('max-length').addEventListener('input', function() {
+        maxLength = parseInt(this.value);
+        document.getElementById('max-length-value').textContent = maxLength;
+      });
+      document.getElementById('temperature').addEventListener('input', function() {
+        temperature = parseFloat(this.value);
+        document.getElementById('temperature-value').textContent = temperature;
+      });
+      modelSelect.addEventListener('change', function() {
+        selectedModel = this.value;
+      });
+
+      // Functions
+      async function handleLogin(e) {
+        e.preventDefault();
+        const tokenInput = document.getElementById('hf-token');
+        hfToken = tokenInput.value.trim();
+        selectedModel = modelSelect.value;
+        if (!hfToken) {
+          showError('Please enter your Hugging Face token');
+          return;
+        }
+        try {
+          const resp = await fetch("https://huggingface.co/api/whoami-v2", {
+            headers: { "Authorization": `Bearer ${hfToken}` }
+          });
+          if (!resp.ok) {
+            showError("Token is invalid or expired. Please check your Hugging Face token.");
+            return;
+          }
+          // Check which models are available for this token
+          await verifyModels(hfToken);
+          loginScreen.classList.add('hidden');
+          app.classList.remove('hidden');
+          document.getElementById('settings-hf-token').value = hfToken;
+          currentModel.textContent = (availableModels.find(m => m.id === selectedModel) || {name:selectedModel}).name;
+        } catch (err) {
+          showError("Network error during token validation. Try again.");
+        }
+      }
+
+      function showError(message) {
+        errorMessage.classList.remove('hidden');
+        document.getElementById('error-text').textContent = message;
+      }
+
+      function updateCharCount() {
+        const count = userInput.value.length;
+        charCount.textContent = count;
+        if (count > 500) {
+          charCount.classList.add('text-red-500');
+        } else {
+          charCount.classList.remove('text-red-500');
+        }
+      }
+
+      async function sendMessage() {
+        const message = userInput.value.trim();
+        if (!message) return;
+        addMessageToChat('user', message);
+        userInput.value = '';
+        updateCharCount();
+        const typingId = showTypingIndicator();
+        try {
+          const apiUrl = `https://api-inference.huggingface.co/models/${selectedModel}`;
+          const response = await fetch(apiUrl, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${hfToken}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              inputs: message,
+              parameters: {
+                max_length: maxLength,
+                temperature: temperature
+              }
+            })
+          });
+          removeTypingIndicator(typingId);
+          if (!response.ok) {
+            let friendlyMsg = '';
+            if (response.status === 404) friendlyMsg = 'Model not found or not enabled for API access. Try a different model.';
+            else if (response.status === 503) friendlyMsg = 'Model is loading or temporarily unavailable. Please wait and try again.';
+            else if (response.status === 401) friendlyMsg = 'Your token does not have access to this model.';
+            else friendlyMsg = "Error from Hugging Face API: " + await response.text();
+            addMessageToChat('bot', friendlyMsg);
+            return;
+          }
+          const data = await response.json();
+          let botReply = '';
+          if (Array.isArray(data) && data[0].generated_text) {
+            botReply = data[0].generated_text;
+          } else if (data.generated_text) {
+            botReply = data.generated_text;
+          } else if (data.hasOwnProperty('error')) {
+            botReply = "API Error: " + data.error;
+          } else {
+            botReply = JSON.stringify(data, null, 2);
+          }
+          addMessageToChat('bot', botReply);
+          chatContainer.scrollTop = chatContainer.scrollHeight;
+        } catch (err) {
+          removeTypingIndicator(typingId);
+          addMessageToChat('bot', "Network or API error: " + err.message);
+        }
+      }
+
+      function addMessageToChat(sender, message) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `flex items-start space-x-3 ${sender === 'user' ? 'justify-end' : ''}`;
+        if (sender === 'user') {
+          messageDiv.innerHTML = `
+            <div class="relative bg-blue-100 rounded-lg px-4 py-3 max-w-[80%]">
+              <div class="message-tail user-message-tail"></div>
+              <p class="text-blue-800">${message}</p>
+            </div>
+            <div class="flex-shrink-0 bg-blue-500 rounded-full p-2 text-white">
+              <i class="fas fa-user"></i>
+            </div>
+          `;
+        } else {
+          messageDiv.innerHTML = `
+            <div class="flex-shrink-0 bg-gray-200 rounded-full p-2">
+              <i class="fas fa-robot text-gray-600"></i>
+            </div>
+            <div class="relative bg-gray-100 rounded-lg px-4 py-3 max-w-[80%]">
+              <div class="message-tail bot-message-tail"></div>
+              <p class="text-gray-800">${message}</p>
+            </div>
+          `;
+        }
+        chatContainer.appendChild(messageDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+
+      function showTypingIndicator() {
+        const typingId = 'typing-' + Date.now();
+        const typingDiv = document.createElement('div');
+        typingDiv.id = typingId;
+        typingDiv.className = 'flex items-start space-x-3';
+        typingDiv.innerHTML = `
+          <div class="flex-shrink-0 bg-gray-200 rounded-full p-2">
+            <i class="fas fa-robot text-gray-600"></i>
+          </div>
+          <div class="relative bg-gray-100 rounded-lg px-4 py-3 max-w-[80%]">
+            <div class="message-tail bot-message-tail"></div>
+            <div class="flex space-x-2">
+              <div class="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+              <div class="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-100"></div>
+              <div class="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-200"></div>
+            </div>
+          </div>
+        `;
+        chatContainer.appendChild(typingDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        return typingId;
+      }
+
+      function removeTypingIndicator(id) {
+        const element = document.getElementById(id);
+        if (element) element.remove();
+      }
+
+      function renderModelList() {
+        modelList.innerHTML = '';
+        availableModels.forEach(model => {
+          const modelElement = document.createElement('div');
+          modelElement.className = 'px-4 py-2 hover:bg-gray-50 cursor-pointer transition';
+          modelElement.innerHTML = `
+            <div class="flex justify-between items-center">
+              <div>
+                <p class="font-medium text-gray-800">${model.name}</p>
+                <p class="text-xs text-gray-500">${model.description}</p>
+              </div>
+              ${model.id === selectedModel ? '<i class="fas fa-check text-blue-500"></i>' : ''}
+            </div>
+          `;
+          modelElement.addEventListener('click', () => {
+            selectedModel = model.id;
+            currentModel.textContent = model.name;
+            modelDropdown.classList.add('hidden');
+            addMessageToChat('system', `Model changed to ${model.name}`);
+          });
+          modelList.appendChild(modelElement);
+        });
+      }
+
+      function toggleModelDropdown() {
+        renderModelList();
+        modelDropdown.classList.toggle('hidden');
+      }
+      function openSettings() { settingsModal.classList.remove('hidden'); }
+      function closeSettingsModal() { settingsModal.classList.add('hidden'); }
+      function saveSettingsHandler() {
+        const newToken = document.getElementById('settings-hf-token').value.trim();
+        if (newToken) { hfToken = newToken; }
+        closeSettingsModal();
+        addMessageToChat('system', 'Settings saved successfully');
+      }
+    });
+  </script>
 </body>
 </html>
