@@ -493,8 +493,6 @@
                         selectedModel = model.id;
                         currentModel.textContent = model.name;
                         modelDropdown.classList.add('hidden');
-                        
-                        // Show model changed message
                         addMessageToChat('system', `Model changed to ${model.name}`);
                     });
                     
@@ -519,10 +517,7 @@
                 if (newToken) {
                     hfToken = newToken;
                 }
-                
                 closeSettingsModal();
-                
-                // Show settings saved message
                 addMessageToChat('system', 'Settings saved successfully');
             }
         });
