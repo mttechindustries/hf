@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enhanced AI Chatbot with Working Models</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .animate-pulse {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    .chat-container {
+      height: calc(100vh - 180px);
+    }
+    .message-tail {
+      position: absolute;
+      width: 0;
+      height: 0;
+      border-style: solid;
+    }
+    .user-message-tail {
+      border-width: 0 0 12px 12px;
+      border-color: transparent transparent #3b82f6 transparent;
+      right: -8px;
+      bottom: 0;
+    }
+    .bot-message-tail {
+      border-width: 0 12px 12px 0;
+      border-color: transparent #e5e7eb transparent transparent;
+      left: -8px;
+      bottom: 0;
+    }
+    .gradient-bg {
+      background: linear-gradient(135deg, #6b46c1 0%, #3b82f6 100%);
+    }
+    .slide-in {
+      animation: slideIn 0.3s ease-out forwards;
+    }
+    @keyframes slideIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .model-badge {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.4rem;
+      border-radius: 0.25rem;
+      background-color: #e5e7eb;
+      color: #4b5563;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 font-sans">
+  <!-- Login Screen -->
+  <div id="login-screen" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50 transition-opacity duration-300">
+    <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md slide-in">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">AI Chatbot</h1>
+        <p class="text-gray-600 mt-2">Connect to premium Hugging Face models</p>
+      </div>
+      <form id="login-form" class="space-y-6">
+        <div>
+          <label for="hf-token" class="block text-sm font-medium text-gray-700 mb-1">Hugging Face Token</label>
+          <input type="password" id="hf-token" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="Enter your Hugging Face API token" required>
+          <p class="mt-1 text-xs text-gray-500">PRO token required for these models</p>
+        </div>
+        <div>
+          <label for="model-selection" class="block text-sm font-medium text-gray-700 mb-1">Default Model</label>
+          <select id="model-selection" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+            <option disabled selected>Loading available models...</option>
+          </select>
+          <p class="mt-2 text-xs text-gray-500">Recommended: Start with Wizard-Vicuna-7B</p>
+        </div>
+        <div id="error-message" class="hidden bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <i class="fas fa-exclamation-circle text-red-500"></i>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm text-red-700" id="error-text"></p>
+            </div>
+          </div>
+        </div>
+        <button type="submit" class="w-full gradient-bg text-white py-3 px-4 rounded-lg font-medium hover:opacity-90 transition flex items-center justify-center">
+          <span>Connect</span>
+          <i class="fas fa-arrow-right ml-2"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div id="app" class="hidden h-screen flex flex-col">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-md">
+      <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+          <i class="fas fa-robot text-2xl"></i>
+          <h1 class="text-xl font-bold">AI Chatbot</h1>
+        </div>
+        <div class="flex items-center space-x-4">
+          <div class="relative group">
+            <button id="model-dropdown-btn" class="flex items-center space-x-1 bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-full text-sm transition">
+              <span id="current-model">Select Model</span>
+              <i class="fas fa-chevron-down text-xs"></i>
+            </button>
+            <div id="model-dropdown" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg z-10 py-1">
+              <div class="px-4 py-2 border-b border-gray-100">
+                <p class="text-xs font-semibold text-gray-500">PREMIUM MODELS</p>
+              </div>
+              <div id="model-list" class="max-h-60 overflow-y-auto">
+                <!-- Models will be added here dynamically -->
+              </div>
+            </div>
+          </div>
+          <button id="settings-btn" class="text-white hover:text-gray-200 transition">
+            <i class="fas fa-cog"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Chat Container -->
+    <div class="flex-1 overflow-hidden container mx-auto px-4 py-4 flex flex-col">
+      <div id="chat-container" class="chat-container overflow-y-auto flex-1 space-y-4 p-4">
+        <!-- Initial messages will appear here -->
+      </div>
+      
+      <!-- Input Area -->
+      <div class="mt-4 bg-white rounded-lg shadow-md p-4">
+        <div class="flex items-center space-x-2">
+          <textarea id="user-input" rows="2" class="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition resize-none" placeholder="Type your message..." maxlength="500"></textarea>
+          <button id="send-btn" class="gradient-bg text-white rounded-full p-3 hover:opacity-90 transition">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </div>
+        <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
+          <div class="flex items-center space-x-2">
+            <button id="params-btn" class="hover:text-blue-500 transition">
+              <i class="fas fa-sliders-h"></i> Parameters
+            </button>
+          </div>
+          <div>
+            <span id="char-count">0</span>/500
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-gray-800">Settings</h2>
+        <button id="close-settings" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="space-y-6">
+        <div>
+          <h3 class="font-medium text-gray-800 mb-2">API Configuration</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Hugging Face Token</label>
+              <input type="password" id="settings-hf-token" class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="Enter your HF token">
+            </div>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-medium text-gray-800 mb-2">Model Parameters</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Max Response Length</label>
+              <input type="range" id="max-length" min="20" max="500" value="100" class="w-full">
+              <div class="flex justify-between text-xs text-gray-500 mt-1">
+                <span>20</span>
+                <span id="max-length-value">100</span>
+                <span>500</span>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Temperature</label>
+              <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7" class="w-full">
+              <div class="flex justify-between text-xs text-gray-500 mt-1">
+                <span>0 (Precise)</span>
+                <span id="temperature-value">0.7</span>
+                <span>2 (Creative)</span>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Top-P Sampling</label>
+              <input type="range" id="top-p" min="0.5" max="1" step="0.05" value="0.9" class="w-full">
+              <div class="flex justify-between text-xs text-gray-500 mt-1">
+                <span>0.5</span>
+                <span id="top-p-value">0.9</span>
+                <span>1.0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pt-4 border-t border-gray-200">
+          <button id="save-settings" class="w-full gradient-bg text-white py-2 px-4 rounded-lg font-medium hover:opacity-90 transition">
+            Save Settings
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // DOM Elements
+      const loginScreen = document.getElementById('login-screen');
+      const loginForm = document.getElementById('login-form');
+      const errorMessage = document.getElementById('error-message');
+      const app = document.getElementById('app');
+      const chatContainer = document.getElementById('chat-container');
+      const userInput = document.getElementById('user-input');
+      const sendBtn = document.getElementById('send-btn');
+      const charCount = document.getElementById('char-count');
+      const modelDropdownBtn = document.getElementById('model-dropdown-btn');
+      const modelDropdown = document.getElementById('model-dropdown');
+      const modelList = document.getElementById('model-list');
+      const currentModel = document.getElementById('current-model');
+      const settingsBtn = document.getElementById('settings-btn');
+      const settingsModal = document.getElementById('settings-modal');
+      const closeSettings = document.getElementById('close-settings');
+      const saveSettings = document.getElementById('save-settings');
+      const modelSelect = document.getElementById('model-selection');
+      const paramsBtn = document.getElementById('params-btn');
+
+      // State with localStorage
+      let hfToken = localStorage.getItem('hfToken') || '';
+      let selectedModel = localStorage.getItem('selectedModel') || 'TheBloke/Wizard-Vicuna-7B-Uncensored-GPTQ';
+      let availableModels = JSON.parse(localStorage.getItem('availableModels')) || [
+        {
+          id: 'mradermacher/deepseek-uncensored-lore-i1-GGUF',
+          name: 'DeepSeek Uncensored',
+          description: 'High-quality uncensored model'
+        },
+        {
+          id: 'TheBloke/Wizard-Vicuna-30B-Uncensored-AWQ',
+          name: 'Wizard Vicuna 30B',
+          description: 'Powerful 30B parameter model'
+        },
+        {
+          id: 'NihalGazi/FLUX-Pro-Unlimited',
+          name: 'FLUX Pro Unlimited',
+          description: 'Advanced conversational AI'
+        },
+        {
+          id: 'TheBloke/Wizard-Vicuna-7B-Uncensored-GPTQ',
+          name: 'Wizard Vicuna 7B',
+          description: 'Efficient 7B parameter model'
+        }
+      ];
+      let maxLength = parseInt(localStorage.getItem('maxLength')) || 100;
+      let temperature = parseFloat(localStorage.getItem('temperature')) || 0.7;
+      let topP = parseFloat(localStorage.getItem('topP')) || 0.9;
+      let loadingInterval = null;
+
+      // Initialize form values
+      document.getElementById('settings-hf-token').value = hfToken;
+      document.getElementById('max-length').value = maxLength;
+      document.getElementById('temperature').value = temperature;
+      document.getElementById('top-p').value = topP;
+      document.getElementById('max-length-value').textContent = maxLength;
+      document.getElementById('temperature-value').textContent = temperature;
+      document.getElementById('top-p-value').textContent = topP;
+
+      // Initialize the app
+      if (hfToken) {
+        initializeApp();
+      }
+
+      // Event Listeners
+      loginForm.addEventListener('submit', handleLogin);
+      userInput.addEventListener('input', updateCharCount);
+      sendBtn.addEventListener('click', sendMessage);
+      userInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+      modelDropdownBtn.addEventListener('click', toggleModelDropdown);
+      settingsBtn.addEventListener('click', openSettings);
+      closeSettings.addEventListener('click', closeSettingsModal);
+      saveSettings.addEventListener('click', saveSettingsHandler);
+      paramsBtn.addEventListener('click', openSettings);
+      document.getElementById('max-length').addEventListener('input', function() {
+        maxLength = parseInt(this.value);
+        document.getElementById('max-length-value').textContent = maxLength;
+      });
+      document.getElementById('temperature').addEventListener('input', function() {
+        temperature = parseFloat(this.value);
+        document.getElementById('temperature-value').textContent = temperature;
+      });
+      document.getElementById('top-p').addEventListener('input', function() {
+        topP = parseFloat(this.value);
+        document.getElementById('top-p-value').textContent = topP;
+      });
+
+      // Functions
+      async function initializeApp() {
+        try {
+          await verifyModels(hfToken);
+          loginScreen.classList.add('hidden');
+          app.classList.remove('hidden');
+          currentModel.textContent = availableModels.find(m => m.id === selectedModel)?.name || selectedModel;
+          addWelcomeMessage();
+        } catch (error) {
+          showError('Initialization failed. Please check your token and try again.');
+        }
+      }
+
+      function addWelcomeMessage() {
+        const modelInfo = availableModels.find(m => m.id === selectedModel) || { name: selectedModel, description: '' };
+        addMessageToChat('bot', 
+          `Hello! I'm an AI assistant powered by ${modelInfo.name}. ${modelInfo.description}\n\n` +
+          `How can I help you today?`);
+      }
+
+      async function handleLogin(e) {
+        e.preventDefault();
+        const token = document.getElementById('hf-token').value.trim();
+        if (!token) {
+          showError('Please enter your Hugging Face token');
+          return;
+        }
+
+        try {
+          const response = await fetch('https://huggingface.co/api/whoami-v2', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          
+          if (!response.ok) {
+            showError('Invalid token. Please check your Hugging Face credentials.');
+            return;
+          }
+
+          const userData = await response.json();
+          if (!userData.auth.accessToken) {
+            showError('PRO account required for these models');
+            return;
+          }
+
+          hfToken = token;
+          localStorage.setItem('hfToken', token);
+          await verifyModels(token);
+          
+          selectedModel = modelSelect.value;
+          localStorage.setItem('selectedModel', selectedModel);
+          
+          loginScreen.classList.add('hidden');
+          app.classList.remove('hidden');
+          currentModel.textContent = availableModels.find(m => m.id === selectedModel)?.name || selectedModel;
+          addWelcomeMessage();
+        } catch (error) {
+          showError('Connection failed. Please check your internet connection.');
+        }
+      }
+
+      async function verifyModels(token) {
+        modelSelect.innerHTML = '<option disabled>Checking model availability...</option>';
+        const verifiedModels = [];
+        
+        // Check model status in parallel
+        const statusChecks = availableModels.map(async model => {
+          try {
+            const response = await fetch(
+              `https://api-inference.huggingface.co/status/${model.id}`,
+              { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            
+            if (response.ok) {
+              const data = await response.json();
+              if (data.state === 'Loadable' || data.state === 'Ready') {
+                return model;
+              }
+            }
+          } catch (error) {
+            console.error(`Status check failed for ${model.id}:`, error);
+          }
+          return null;
+        });
+
+        const results = await Promise.all(statusChecks);
+        verifiedModels.push(...results.filter(m => m !== null));
+
+        if (verifiedModels.length === 0) {
+          throw new Error('No available models found');
+        }
+
+        availableModels = verifiedModels;
+        localStorage.setItem('availableModels', JSON.stringify(availableModels));
+        renderModelOptions();
+      }
+
+      function renderModelOptions() {
+        modelSelect.innerHTML = '';
+        availableModels.forEach(model => {
+          const option = document.createElement('option');
+          option.value = model.id;
+          option.textContent = model.name;
+          if (model.id === selectedModel) option.selected = true;
+          modelSelect.appendChild(option);
+        });
+      }
+
+      async function sendMessage() {
+        const message = userInput.value.trim();
+        if (!message) return;
+
+        addMessageToChat('user', message);
+        userInput.value = '';
+        updateCharCount();
+        
+        const typingId = showTypingIndicator();
+
+        try {
+          const response = await fetch(
+            `https://api-inference.huggingface.co/models/${selectedModel}`,
+            {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${hfToken}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                inputs: message,
+                parameters: {
+                  max_new_tokens: maxLength,
+                  temperature: temperature,
+                  top_p: topP,
+                  repetition_penalty: 1.2,
+                  return_full_text: false
+                }
+              })
+            }
+          );
+
+          removeTypingIndicator(typingId);
+
+          if (response.status === 503) {
+            const data = await response.json();
+            return handleModelLoading(data.estimated_time);
+          }
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || response.statusText);
+          }
+
+          const data = await response.json();
+          const botReply = extractGeneratedText(data);
+          addMessageToChat('bot', botReply);
+        } catch (error) {
+          handleAPIError(error, error.response?.status);
+        }
+      }
+
+      function handleModelLoading(estimatedTime) {
+        const minutes = Math.ceil(estimatedTime / 60);
+        addMessageToChat('bot', 
+          `Model is loading. Estimated wait time: ${minutes} minute${minutes !== 1 ? 's' : ''}. ` +
+          `I'll notify you when it's ready.`);
+        
+        if (loadingInterval) clearInterval(loadingInterval);
+        
+        loadingInterval = setInterval(async () => {
+          try {
+            const statusResponse = await fetch(
+              `https://api-inference.huggingface.co/status/${selectedModel}`,
+              { headers: { 'Authorization': `Bearer ${hfToken}` } }
+            );
+            
+            if (statusResponse.ok) {
+              const statusData = await statusResponse.json();
+              if (statusData.state === 'Ready') {
+                clearInterval(loadingInterval);
+                addMessageToChat('bot', 'Model loaded and ready! Please resend your message.');
+              }
+            }
+          } catch (error) {
+            clearInterval(loadingInterval);
+            handleAPIError(error);
+          }
+        }, 30000);
+      }
+
+      function extractGeneratedText(data) {
+        if (Array.isArray(data) && data[0]?.generated_text) {
+          return data[0].generated_text;
+        }
+        if (data.generated_text) {
+          return data.generated_text;
+        }
+        if (data[0]?.summary_text) {
+          return data[0].summary_text;
+        }
+        return 'Received unexpected response format from API';
+      }
+
+      function handleAPIError(error, status) {
+        let message = 'An error occurred';
+        switch (status) {
+          case 401:
+            message = 'Invalid API token. Please check your Hugging Face token.';
+            break;
+          case 403:
+            message = 'PRO account required for these models';
+            break;
+          case 404:
+            message = 'Model not found. Please select another model.';
+            break;
+          case 503:
+            message = 'Model is currently loading. Please try again later.';
+            break;
+          case 429:
+            message = 'Rate limit exceeded. Please wait before sending more requests.';
+            break;
+          default:
+            message = `API Error: ${error.message || error}`;
+        }
+        addMessageToChat('bot', message);
+      }
+
+      function addMessageToChat(sender, message) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `flex items-start space-x-3 ${sender === 'user' ? 'justify-end' : ''}`;
+        
+        if (sender === 'user') {
+          messageDiv.innerHTML = `
+            <div class="relative bg-blue-100 rounded-lg px-4 py-3 max-w-[80%]">
+              <div class="message-tail user-message-tail"></div>
+              <p class="text-blue-800">${message}</p>
+            </div>
+            <div class="flex-shrink-0 bg-blue-500 rounded-full p-2 text-white">
+              <i class="fas fa-user"></i>
+            </div>
+          `;
+        } else {
+          messageDiv.innerHTML = `
+            <div class="flex-shrink-0 bg-gray-200 rounded-full p-2">
+              <i class="fas fa-robot text-gray-600"></i>
+            </div>
+            <div class="relative bg-gray-100 rounded-lg px-4 py-3 max-w-[80%]">
+              <div class="message-tail bot-message-tail"></div>
+              <p class="text-gray-800">${message}</p>
+            </div>
+          `;
+        }
+        
+        chatContainer.appendChild(messageDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+
+      function showTypingIndicator() {
+        const typingId = 'typing-' + Date.now();
+        const typingDiv = document.createElement('div');
+        typingDiv.id = typingId;
+        typingDiv.className = 'flex items-start space-x-3';
+        typingDiv.innerHTML = `
+          <div class="flex-shrink-0 bg-gray-200 rounded-full p-2">
+            <i class="fas fa-robot text-gray-600"></i>
+          </div>
+          <div class="relative bg-gray-100 rounded-lg px-4 py-3 max-w-[80%]">
+            <div class="message-tail bot-message-tail"></div>
+            <div class="flex space-x-2">
+              <div class="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+              <div class="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-100"></div>
+              <div class="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-200"></div>
+            </div>
+          </div>
+        `;
+        chatContainer.appendChild(typingDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        return typingId;
+      }
+
+      function removeTypingIndicator(id) {
+        const element = document.getElementById(id);
+        if (element) element.remove();
+      }
+
+      function renderModelList() {
+        modelList.innerHTML = '';
+        availableModels.forEach(model => {
+          const modelElement = document.createElement('div');
+          modelElement.className = 'px-4 py-2 hover:bg-gray-50 cursor-pointer transition';
+          modelElement.innerHTML = `
+            <div class="flex justify-between items-center">
+              <div>
+                <p class="font-medium text-gray-800">${model.name}</p>
+                <p class="text-xs text-gray-500">${model.description}</p>
+              </div>
+              ${model.id === selectedModel ? '<i class="fas fa-check text-blue-500"></i>' : ''}
+            </div>
+          `;
+          modelElement.addEventListener('click', () => {
+            selectedModel = model.id;
+            localStorage.setItem('selectedModel', selectedModel);
+            currentModel.textContent = model.name;
+            modelDropdown.classList.add('hidden');
+            addMessageToChat('system', `Model changed to ${model.name}`);
+          });
+          modelList.appendChild(modelElement);
+        });
+      }
+
+      function toggleModelDropdown() {
+        renderModelList();
+        modelDropdown.classList.toggle('hidden');
+      }
+
+      function openSettings() { 
+        settingsModal.classList.remove('hidden');
+        document.getElementById('settings-hf-token').value = hfToken;
+      }
+
+      function closeSettingsModal() { 
+        settingsModal.classList.add('hidden'); 
+      }
+
+      function saveSettingsHandler() {
+        const newToken = document.getElementById('settings-hf-token').value.trim();
+        if (newToken) { 
+          hfToken = newToken;
+          localStorage.setItem('hfToken', hfToken);
+        }
+        localStorage.setItem('maxLength', maxLength);
+        localStorage.setItem('temperature', temperature);
+        localStorage.setItem('topP', topP);
+        closeSettingsModal();
+        addMessageToChat('system', 'Settings saved successfully');
+      }
+
+      function updateCharCount() {
+        const count = userInput.value.length;
+        charCount.textContent = count;
+        charCount.className = count > 500 ? 'text-red-500' : '';
+      }
+
+      function showError(message) {
+        errorMessage.classList.remove('hidden');
+        document.getElementById('error-text').textContent = message;
+      }
+    });
+  </script>
+</body>
+</html>
